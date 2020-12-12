@@ -1,0 +1,23 @@
+version: 2.1
+jobs:
+  test_master:
+    docker:
+      - image: euantorano/zig:master
+
+    working_directory: ~/repo
+
+    steps:
+      - checkout
+      - run:
+          name: print zig version
+          command: |
+            zig version
+      - run:
+          name: run tests
+          command: |
+            zig build-exe -lc -lX11 src/main.zig
+workflows:
+  version: 2
+  commit:
+    jobs:
+      - test_master
