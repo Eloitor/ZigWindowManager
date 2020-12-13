@@ -1,5 +1,7 @@
 # ZigWindowManager
 
+[![CircleCI](https://circleci.com/gh/Eloitor/ZigWindowManager.svg?style=svg)](https://circleci.com/gh/Eloitor/ZigWindowManager)
+
 - Tiling and floating
 - Non reparenting
 - Single screen support
