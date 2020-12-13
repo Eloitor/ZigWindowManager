@@ -16,6 +16,7 @@ jobs:
           name: run tests
           command: |
             apk add libx11-dev
+            apk add libxft
             zig build-exe src/main.zig -lc -lX11 -lXft -I/usr/include/freetype2
 workflows:
   version: 2
