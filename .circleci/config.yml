@@ -16,7 +16,8 @@ jobs:
           name: run tests
           command: |
             zig build-exe src/main.zig -lc -lX11 -lXft -I/usr/include/freetype2
-            zig build-exe src/client.zig -lc -lX11 -lXft -I/usr/include/freetype2
+            zig build-exe src/client.zig -lc -lX11
+          paralel: true
 
 workflows:
   version: 2
