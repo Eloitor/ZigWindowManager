@@ -2,7 +2,7 @@ version: 2.1
 jobs:
   test_master:
     docker:
-      - image: euantorano/zig:master
+      - image: eloitor/zig:master
 
     working_directory: ~/repo
 
@@ -15,12 +15,11 @@ jobs:
       - run:
           name: run tests
           command: |
-            apk add libx11-dev
-            apk add libxft-dev
             zig build-exe src/main.zig -lc -lX11 -lXft -I/usr/include/freetype2
             zig build-exe src/client.zig -lc -lX11 -lXft -I/usr/include/freetype2
 workflows:
   version: 2
   commit:
     jobs:
-      - test_master
+        - test_master:
+          context: dockerhub
