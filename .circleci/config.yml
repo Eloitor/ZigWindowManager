@@ -23,4 +23,4 @@ workflows:
   commit:
     jobs:
       - test_master:
-         context: docker
+         context: dockerfile
