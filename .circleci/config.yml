@@ -17,9 +17,10 @@ jobs:
           command: |
             zig build-exe src/main.zig -lc -lX11 -lXft -I/usr/include/freetype2
             zig build-exe src/client.zig -lc -lX11 -lXft -I/usr/include/freetype2
+
 workflows:
   version: 2
   commit:
     jobs:
-        - test_master:
-          context: dockerhub
+      - test_master:
+         context: docker
