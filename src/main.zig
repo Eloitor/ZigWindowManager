@@ -8,14 +8,14 @@ const print = std.debug.warn;
 const allocator = std.heap.c_allocator;
 
 fn process_client_message(message: [20]u8, display: *c.Display) void {
-    print("Message arrived: {}\n ", .{message});
+    print("Message arrived: {s}\n ", .{message});
     switch(message[0]){
         'k' =>
             _ = if (focus) |f| { _ = c.XKillClient(display, f.win);
             print("Killing client {}\n", .{f.win});
         },
         else => {
-            print("Unknown message recived: {}\n", .{message});
+            print("Unknown message recived: {s}\n", .{message});
         },
     }
 }
@@ -316,9 +316,9 @@ fn manageWindow(window: c.Window, window_attrs: c.XWindowAttributes, display: *c
         const XA_STRING : c.Atom = 31; 
         if (tp.encoding == XA_STRING){
             std.mem.copy(u8, cl.name[0..25], tp.value[0..25]); 
-            print ("Title of client {} read as verbatim string\n", .{cl.name});
+            print ("Title of client {s} read as verbatim string\n", .{cl.name});
         } 
-        print("Title of client is now {}\n", .{ cl.name});
+        print("Title of client is now {s}\n", .{ cl.name});
     }
     _ =  c.XSelectInput(display, window, 0
         | c.FocusChangeMask  // FocusIn, FocusOut */
