@@ -13,4 +13,4 @@
 - [How X window managers work and how to write One](https://jichu4n.com/posts/how-x-window-managers-work-and-how-to-write-one-part-i/)
 ## A basic window manager written in Zig
 
-- This window manager doesn't capture keypresses... We need a key daemon. For example `sxhkd`
+- This window manager doesn't capture keypresses... We need a key daemon. For example [sxhkd](https://github.com/baskerville/sxhkd)
