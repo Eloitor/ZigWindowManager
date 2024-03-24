@@ -73,7 +73,7 @@ pub fn main() void {
     print("\n\tZig Window Manager. Minimal version.\n\n", .{});
     print(" 1. Open X display.\n", .{});
 
-    var display: *c.Display = c.XOpenDisplay(null) orelse return print("\tError: Failed to open X display\n", .{});
+    var display: *c.Display = c.XOpenDisplay(0x0) orelse return print("\tError: Failed to open X display\n", .{});
     defer _ = c.XCloseDisplay(display);
 
     var root = c.XDefaultRootWindow(display);
