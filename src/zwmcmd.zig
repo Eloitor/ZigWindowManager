@@ -8,7 +8,7 @@ const print = std.debug.print;
 pub fn main() anyerror!void {
     var args = std.process.ArgIteratorPosix.init();
     _ = args.skip();
-    var arg_one = args.next() orelse return usage();
+    const arg_one = args.next() orelse return usage();
     if (arg_one.len <= 1 or arg_one[0] != '-') return usage();
     switch (arg_one[1]) {
         'k', 'R', 'q' => return send_command(arg_one[1], 0),
@@ -25,9 +25,9 @@ pub fn main() anyerror!void {
 }
 
 fn send_command(command: u8, arg: u8) !void {
-    var display: *c.Display = c.XOpenDisplay(null) orelse return; // TODO Error
+    const display: *c.Display = c.XOpenDisplay(null) orelse return; // TODO Error
     defer _ = c.XCloseDisplay(display);
-    var root = c.XDefaultRootWindow(display);
+    const root = c.XDefaultRootWindow(display);
     var ev: c.XEvent = undefined;
     ev.xclient.type = c.ClientMessage;
     ev.xclient.window = root;
