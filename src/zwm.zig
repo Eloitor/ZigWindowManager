@@ -20,14 +20,16 @@ fn process_client_message(message: [20]u8, display: *c.Display) void {
     }
 }
 
-fn OnWMDetected(display: ?*c.Display, e: [*c]c.XErrorEvent) callconv(.C) c_int {
+fn OnWMDetected(display: ?*c.Display, e: [*c]c.XErrorEvent) callconv(.c) c_int {
     _ = display;
     _ = e;
     print("\tError: Another window manager is running.", .{});
-    std.os.exit(1);
+    std.process.exit(1);
 }
 
-var clients = std.ArrayList(*Client).init(allocator);
+var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+const gpalloc = gpa.allocator();
+var clients : std.ArrayList(*Client) = .empty;
 var focus: ?*Client = null;
 const Cursor = enum { Normal, Resize, Move, Last };
 
@@ -73,10 +75,10 @@ pub fn main() void {
     print("\n\tZig Window Manager. Minimal version.\n\n", .{});
     print(" 1. Open X display.\n", .{});
 
-    var display: *c.Display = c.XOpenDisplay(0x0) orelse return print("\tError: Failed to open X display\n", .{});
+    const display: *c.Display = c.XOpenDisplay(0x0) orelse return print("\tError: Failed to open X display\n", .{});
     defer _ = c.XCloseDisplay(display);
 
-    var root = c.XDefaultRootWindow(display);
+    const root = c.XDefaultRootWindow(display);
     var nofocus: c.Window = undefined;
 
     { // 1. Initialization.
@@ -107,17 +109,17 @@ pub fn main() void {
         _ = c.XSync(display, c.False); // it is not necessary to run it now.
 
         // init screen
-        var screen: i32 = c.XDefaultScreen(display); // TODO Document differece respect to XDefaultScreen / DefaultScreen.
+        const screen: i32 = c.XDefaultScreen(display); // TODO Document differece respect to XDefaultScreen / DefaultScreen.
         // root = c.XRootWindow(display, screen); for multiple screens. otherwise is not necessary
-        var sw: i32 = c.XDisplayWidth(display, screen);
-        var sh: i32 = c.XDisplayHeight(display, screen);
+        const sw: i32 = c.XDisplayWidth(display, screen);
+        const sh: i32 = c.XDisplayHeight(display, screen);
         print("Screen initialized\n", .{});
 
         // c. Set default cursor on root window and center.
-        var cursor_normal = c.XCreateFontCursor(display, c.XC_left_ptr);
-        var cursor_resize = c.XCreateFontCursor(display, c.XC_sizing);
+        const cursor_normal = c.XCreateFontCursor(display, c.XC_left_ptr);
+        const cursor_resize = c.XCreateFontCursor(display, c.XC_sizing);
         _ = cursor_resize;
-        var cursor_move = c.XCreateFontCursor(display, c.XC_fleur);
+        const cursor_move = c.XCreateFontCursor(display, c.XC_fleur);
         _ = cursor_move;
         _ = c.XDefineCursor(display, root, cursor_normal);
         _ = c.XWarpPointer(display, c.None, root, 0, 0, 0, 0, @divTrunc(sw, 2), @divTrunc(sh, 2)); // center pointer
@@ -164,7 +166,7 @@ pub fn main() void {
             var i: u32 = 0;
             var window_attrs: c.XWindowAttributes = undefined;
             while (i < num_top_level_windows) : (i = i + 1) {
-                var window = top_level_windows[i];
+                const window = top_level_windows[i];
                 // katriawm
                 if (c.XGetWindowAttributes(display, window, &window_attrs) == 0 or window_attrs.override_redirect != 0 or c.XGetTransientForHint(display, window, &returned_root) != 0)
                     continue;
@@ -173,7 +175,7 @@ pub fn main() void {
             }
             i = 0; // now the transients
             while (i < num_top_level_windows) : (i = i + 1) {
-                var window = top_level_windows[i];
+                const window = top_level_windows[i];
 
                 if (c.XGetWindowAttributes(display, window, &window_attrs) == 0 or window_attrs.override_redirect != 0)
                     continue;
@@ -220,7 +222,7 @@ pub fn main() void {
             },
             c.UnmapNotify => {
                 print("Unmap Notify\n", .{});
-                var cl: *Client = wintoclient(e.xunmap.window) orelse continue;
+                const cl: *Client = wintoclient(e.xunmap.window) orelse continue;
                 if (e.xunmap.send_event != 0) {
                     //set clientsstate ( c, WithdeawnState)
                 } else {
@@ -240,16 +242,16 @@ pub fn main() void {
             },
             c.DestroyNotify => {
                 print("Destroy Notify\n", .{});
-                var cl: *Client = wintoclient(e.xdestroywindow.window) orelse continue;
+                const cl: *Client = wintoclient(e.xdestroywindow.window) orelse continue;
                 _ = cl;
                 //unmanage(c,1)
             },
             c.EnterNotify => {
                 print("Enter Notify\n", .{});
-                var ev = e.xcrossing;
+                const ev = e.xcrossing;
                 if ((ev.mode != c.NotifyNormal or ev.detail == c.NotifyInferior) and ev.window != root)
                     return;
-                var cl = wintoclient(ev.window) orelse {
+                const cl = wintoclient(ev.window) orelse {
                     continue; // no estic segur
                 };
                 // m = cl.mon
@@ -261,7 +263,7 @@ pub fn main() void {
             },
             c.ClientMessage => {
                 print("Client Message\n", .{});
-                var cme: *c.XClientMessageEvent = &e.xclient;
+                const cme: *c.XClientMessageEvent = &e.xclient;
                 //var cl = wintoclient(cme.window) orelse {
                 //    print("window: {}\n", .{cme.window});
                 //    print("all clients:\n",.{});
@@ -276,7 +278,7 @@ pub fn main() void {
                 }
             },
             c.PropertyNotify => {
-                var ev = &e.xproperty;
+                const ev = &e.xproperty;
                 if (ev.window == root) { // and ev.atom == c.XA_WM_NAME){
                     //updatestatus
                 } else if (ev.state == c.PropertyDelete) {}
@@ -305,18 +307,18 @@ fn manageWindow(window: c.Window, window_attrs: c.XWindowAttributes, display: *c
     { // client update title
         var tp: c.XTextProperty = undefined;
         defer _ = c.XFree(tp.value);
-        var AtomNetWMName = c.XInternAtom(display, "_NET_WM_NAME", c.False);
+        const AtomNetWMName = c.XInternAtom(display, "_NET_WM_NAME", c.False);
         if (c.XGetTextProperty(display, window, &tp, AtomNetWMName) == 0) {
             print("Title of client could not be read from EWMH\n", .{});
-            var XA_WM_NAME: c.Atom = 39;
+            const XA_WM_NAME: c.Atom = 39;
             if (c.XGetTextProperty(display, window, &tp, XA_WM_NAME) != 0)
                 print("Title of client  could not be read from ICCCM\n", .{});
         }
         if (tp.nitems == 0)
-            std.mem.copy(u8, cl.name[0..25], "NAME UNKNOWN");
+            std.mem.copyForwards(u8, cl.name[0..25], "NAME UNKNOWN");
         const XA_STRING: c.Atom = 31;
         if (tp.encoding == XA_STRING) {
-            std.mem.copy(u8, cl.name[0..25], tp.value[0..25]);
+            std.mem.copyForwards(u8, cl.name[0..25], tp.value[0..25]);
             print("Title of client {s} read as verbatim string\n", .{cl.name});
         }
         print("Title of client is now {s}\n", .{cl.name});
@@ -336,7 +338,7 @@ fn manageWindow(window: c.Window, window_attrs: c.XWindowAttributes, display: *c
     // katriawm - evaluate various hints
     print("client.win {}, win {}\n", .{ cl.win, window });
     cl.win = window;
-    clients.append(cl) catch {
+    clients.append(gpalloc, cl) catch {
         print("Error while saving client to list clients.", .{});
         unreachable;
     };
@@ -347,7 +349,7 @@ fn manageWindow(window: c.Window, window_attrs: c.XWindowAttributes, display: *c
 /// There's no way to check accesses to destroyed windows, thus those cases are
 /// ignored (especially on UnmapNotify's). Other types of errors call Xlibs
 /// default error handler, which may call exit.
-fn OnXError(display: ?*c.Display, ee: [*c]c.XErrorEvent) callconv(.C) c_int {
+fn OnXError(display: ?*c.Display, ee: [*c]c.XErrorEvent) callconv(.c) c_int {
     _ = display;
     _ = ee;
     // if (ee.error_code == c.BadWindow
@@ -378,7 +380,8 @@ fn OnConfigureRequest(e: c.XConfigureRequestEvent, display: *c.Display) void {
         window_changes.sibling = e.above;
         window_changes.stack_mode = e.detail;
         // Grant request by calling XConfigureWindow().
-        _ = c.XConfigureWindow(display, e.window, @truncate(u32, e.value_mask), &window_changes);
+        // _ = c.XConfigureWindow(display, e.window, @truncate(u32, e.value_mask), &window_changes);
+        _ = c.XConfigureWindow(display, e.window, e.value_mask, &window_changes);
         return;
     };
     if (e.value_mask != 0) { // & cwborderwidth != 0){
@@ -392,7 +395,7 @@ fn OnConfigureRequest(e: c.XConfigureRequestEvent, display: *c.Display) void {
 // There's no way to check accesses to destroyed windows, thus those cases are
 // ignored (especially on UnmapNotify's). Other types of errors call Xlibs
 // default error handler, which may call exit.
-fn xerrordummy(display: ?*c.Display, ee: [*c]c.XErrorEvent) callconv(.C) c_int {
+fn xerrordummy(display: ?*c.Display, ee: [*c]c.XErrorEvent) callconv(.c) c_int {
     _ = display;
     _ = ee;
     return 0;
